@@ -5,29 +5,22 @@ class Net::TP::BaseResponse
     new(res)
   end
 
-  attr_reader :body, :success
+  attr_reader :body
 
   def initialize(res)
     raise Net::TP::BadResponse, "Invalid Tax response" unless res =~ self.class::VALID_RESPONSE_REGEX
 
-    @body = res
+    @body = parse_body(res)
     @success = true
   end
 
   def success?
-    success
+    @success
   end
 
-  def valid_response_regex
-    if self.class::HAS_RESPONSE_BODY & !self.class::HAS_RESPONSE_FOOTER
-      # Calculate
-      Regexp("^#{self.class::RESPONSE_BODY_REGEX_STRING}")
-    elsif self.class::HAS_RESPONSE_BODY & self.class::HAS_RESPONSE_FOOTER
-      # QUERY
-      Regexp("^#{self.class::RESPONSE_BODY_REGEX_STRING}#{self.class::Request::HEADER}: OK\n$")
-    else
-      # TAX, STORE, BYE, END
-      Regexp("^#{self.class::Request::HEADER}: OK\n$")
-    end
+  private
+
+  def parse_body(_)
+    nil
   end
 end

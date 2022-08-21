@@ -31,23 +31,28 @@ module Net
       request(Query)
     end
 
-    def calculate(tax_payable)
-      request(Calculate, tax_payable)
+    def calculate(taxable_income)
+      request(Calculate, taxable_income)
     end
 
     def bye
-      request(Bye)
-      @tax_connection_established = false
+      response = request(Bye)
+      close_socket
+
+      response
     end
 
     def end
-      request(End)
+      response = request(End)
+      close_socket
+
+      response
     end
 
     private
 
     def request(operation, ...)
-      raise IOError, "Need to first send a Tax request" unless operation == Tax || @socket
+      raise IOError, "Need to first send a Tax request and open a socket" unless operation == Tax || @socket
 
       open_socket unless @socket
 
@@ -56,15 +61,15 @@ module Net
       operation::Response.parse(@socket.gets)
     end
 
-    def tax_connection_established?
-      @tax_connection_established
-    end
-
     def open_socket
       @socket = TCPSocket.new(@address, @port)
     rescue Errno::ECONNREFUSED => e
       puts "Unable to open socket at #{@address}:#{@port}. #{e}"
       raise
+    end
+
+    def close_socket
+      @socket.close
     end
   end
 end
@@ -73,3 +78,7 @@ require_relative "tp/base_request"
 require_relative "tp/base_response"
 require_relative "tp/tax"
 require_relative "tp/store"
+require_relative "tp/query"
+require_relative "tp/calculate"
+require_relative "tp/bye"
+require_relative "tp/end"
