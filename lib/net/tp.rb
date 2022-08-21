@@ -6,6 +6,8 @@ module Net
   class TP
     class BadResponse < StandardError; end
 
+    attr_accessor :address, :port
+
     def self.start(...)
       new(...).tax
     end
@@ -47,6 +49,10 @@ module Net
       close_socket
 
       response
+    end
+
+    def connected?
+      @socket && !@socket.closed?
     end
 
     private

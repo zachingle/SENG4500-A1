@@ -8,13 +8,16 @@ RSpec.describe(Net::TP) do
 
   before do
     allow(TCPSocket).to receive(:new).with(address, port).and_return(socket)
-    allow(socket).to receive(:puts).with("TAX\n")
+    allow(socket).to receive(:puts).with(request)
+    allow(socket).to receive(:gets).and_return(response)
   end
 
   describe ".start" do
-    before { allow(socket).to receive(:gets).and_return("TAX: OK\n") }
+    let(:request) { "TAX\n" }
 
     context "with a valid response" do
+      let(:response) { "TAX: OK\n" }
+
       it "initialises a socket and returns an instance of itself" do
         expect(client).to be_an_instance_of(described_class)
 
@@ -23,7 +26,7 @@ RSpec.describe(Net::TP) do
     end
 
     context "with an invalid response" do
-      before { allow(socket).to receive(:gets).and_return("TAX: bad\n") }
+      let(:response) { "TAX: BAD\n" }
 
       it "throws a BadResponse exception" do
         expect { client }.to raise_error(Net::TP::BadResponse)
@@ -34,6 +37,7 @@ RSpec.describe(Net::TP) do
   context "with an instance of Net::TP that is connected" do
     before do
       # Have to initialise the client/connection first
+      allow(socket).to receive(:puts).with("TAX\n")
       allow(socket).to receive(:gets).and_return("TAX: OK\n")
       client
 
@@ -47,8 +51,9 @@ RSpec.describe(Net::TP) do
       let(:response) { "STORE: OK\n" }
       let(:client_response) { client.store(lower: 18_201, upper: 37_000, base: 0, rate: 19) }
 
-      it "sends a new tax rule" do
+      it "stores a new tax rule" do
         expect(client_response).to be_success
+        expect(client_response.raw_response).to eq response
 
         expect(socket).to have_received(:puts).with(request)
       end
@@ -56,12 +61,18 @@ RSpec.describe(Net::TP) do
 
     describe "#query" do
       let(:request) { "QUERY\n" }
-      let(:response) { "18201 37000 0 19\nQUERY: OK\n" }
+      let(:response) { "18201 37000 0 19\n37001 80000 3572 32\nQUERY: OK\n" }
       let(:client_response) { client.query }
 
-      it "returns tax rule" do
+      it "returns a tax rules" do
         expect(client_response).to be_success
-        expect(client_response.body).to eq([{ lower: 18_201, upper: 37_000, base: 0, rate: 19 }])
+        expect(client_response.body).to eq(
+          [
+            { lower: 18_201, upper: 37_000, base: 0, rate: 19 },
+            { lower: 37_001, upper: 80_000, base: 3_572, rate: 32 },
+          ],
+        )
+        expect(client_response.raw_response).to eq response
 
         expect(socket).to have_received(:puts).with(request)
       end
@@ -75,6 +86,7 @@ RSpec.describe(Net::TP) do
       it "returns a tax payable" do
         expect(client_response).to be_success
         expect(client_response.body).to eq(tax_payable: 2241.81)
+        expect(client_response.raw_response).to eq response
 
         expect(socket).to have_received(:puts).with(request)
       end
@@ -85,6 +97,7 @@ RSpec.describe(Net::TP) do
         it "returns nil" do
           expect(client_response).to be_success
           expect(client_response.body).to eq(tax_payable: nil)
+          expect(client_response.raw_response).to eq response
 
           expect(socket).to have_received(:puts).with(request)
         end
@@ -96,9 +109,10 @@ RSpec.describe(Net::TP) do
       let(:response) { "BYE: OK\n" }
       let(:client_response) { client.bye }
 
-      it "sends a new tax rule" do
+      it "closes connection" do
         expect(client_response).to be_success
         expect(client_response.body).to be_nil
+        expect(client_response.raw_response).to eq response
 
         expect(socket).to have_received(:close)
         expect(socket).to have_received(:puts).with(request)
@@ -110,9 +124,10 @@ RSpec.describe(Net::TP) do
       let(:response) { "END: OK\n" }
       let(:client_response) { client.end }
 
-      it "sends a new tax rule" do
+      it "closes connection" do
         expect(client_response).to be_success
         expect(client_response.body).to be_nil
+        expect(client_response.raw_response).to eq response
 
         expect(socket).to have_received(:close)
         expect(socket).to have_received(:puts).with(request)

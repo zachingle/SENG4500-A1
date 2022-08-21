@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+require "aruba/rspec"
 require "pry"
 require_relative "../lib/net/tp"
 
@@ -32,6 +33,8 @@ RSpec.configure do |config|
     #     # => "be bigger than 2"
     expectations.include_chain_clauses_in_custom_matcher_descriptions = true
   end
+
+  config.formatter = :documentation
 
   # rspec-mocks config goes here. You can use an alternate test double
   # library (such as bogus or mocha) by changing the `mock_with` option here.
