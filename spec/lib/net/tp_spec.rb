@@ -8,7 +8,7 @@ RSpec.describe(Net::TP) do
 
   before do
     allow(TCPSocket).to receive(:new).with(address, port).and_return(socket)
-    allow(socket).to receive(:puts).with(request)
+    allow(socket).to receive(:write).with(request)
     allow(socket).to receive(:gets).and_return(response)
   end
 
@@ -21,27 +21,46 @@ RSpec.describe(Net::TP) do
       it "initialises a socket and returns an instance of itself" do
         expect(client).to be_an_instance_of(described_class)
 
-        expect(socket).to have_received(:puts).with("TAX\n")
+        expect(socket).to have_received(:write).with("TAX\n")
       end
     end
 
     context "with an invalid response" do
       let(:response) { "TAX: BAD\n" }
 
-      it "throws a BadResponse exception" do
+      it "throws an exception" do
         expect { client }.to raise_error(Net::TP::BadResponse)
       end
     end
   end
 
-  context "with an instance of Net::TP that is connected" do
+  describe "#tax" do
+    let(:request) { "TAX\n" }
+    let(:response) { "TAX: OK\n" }
+    let(:client) { described_class.new(address:, port:) }
+    let(:client_response) { client.tax }
+
+    it "makes a connection to a tax server" do
+      expect(client_response).to be_success
+      expect(client_response.raw_response).to eq response
+    end
+
+    it "throws an exception when already connected" do
+      client_response
+
+      expect { client.tax }.to raise_error(IOError)
+    end
+  end
+
+  context "with a client that is connected" do
     before do
       # Have to initialise the client/connection first
-      allow(socket).to receive(:puts).with("TAX\n")
+      allow(socket).to receive(:write).with("TAX\n")
       allow(socket).to receive(:gets).and_return("TAX: OK\n")
       client
 
-      allow(socket).to receive(:puts).with(request)
+      # Setup mocks
+      allow(socket).to receive(:write).with(request)
       allow(socket).to receive(:gets).and_return(response)
       allow(socket).to receive(:close)
     end
@@ -55,7 +74,7 @@ RSpec.describe(Net::TP) do
         expect(client_response).to be_success
         expect(client_response.raw_response).to eq response
 
-        expect(socket).to have_received(:puts).with(request)
+        expect(socket).to have_received(:write).with(request)
       end
     end
 
@@ -74,7 +93,7 @@ RSpec.describe(Net::TP) do
         )
         expect(client_response.raw_response).to eq response
 
-        expect(socket).to have_received(:puts).with(request)
+        expect(socket).to have_received(:write).with(request)
       end
     end
 
@@ -88,7 +107,7 @@ RSpec.describe(Net::TP) do
         expect(client_response.body).to eq(tax_payable: 2241.81)
         expect(client_response.raw_response).to eq response
 
-        expect(socket).to have_received(:puts).with(request)
+        expect(socket).to have_received(:write).with(request)
       end
 
       describe "when no tax range exists" do
@@ -99,7 +118,7 @@ RSpec.describe(Net::TP) do
           expect(client_response.body).to eq(tax_payable: nil)
           expect(client_response.raw_response).to eq response
 
-          expect(socket).to have_received(:puts).with(request)
+          expect(socket).to have_received(:write).with(request)
         end
       end
     end
@@ -115,7 +134,7 @@ RSpec.describe(Net::TP) do
         expect(client_response.raw_response).to eq response
 
         expect(socket).to have_received(:close)
-        expect(socket).to have_received(:puts).with(request)
+        expect(socket).to have_received(:write).with(request)
       end
     end
 
@@ -130,7 +149,7 @@ RSpec.describe(Net::TP) do
         expect(client_response.raw_response).to eq response
 
         expect(socket).to have_received(:close)
-        expect(socket).to have_received(:puts).with(request)
+        expect(socket).to have_received(:write).with(request)
       end
     end
   end

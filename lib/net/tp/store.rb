@@ -5,7 +5,7 @@ module Net::TP::Store
     HEADER = "STORE"
 
     def construct(*args)
-      "#{self.class::HEADER}\n#{args.join("\n")}\n"
+      "#{self.class::HEADER}\n#{args.join("\n")}"
     end
   end
 

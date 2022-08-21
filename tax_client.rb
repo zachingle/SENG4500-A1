@@ -1,30 +1,32 @@
 # frozen_string_literal: true
 
 require "optparse"
-require "socket"
 require "pry"
 
+require_relative "lib/net/tp"
+
 class TaxClient
-  VALID_OPERATIONS = %w[help tax store query calculate bye end exit].freeze
+  VALID_COMMANDS = %w[help connect disconnect store query calculate shutdown exit].freeze
 
   def self.run
     new.run
   end
 
   def run
-    puts "A client to connect to a server which implements the Tax protocol. Enter 'help' for valid operations."
+    puts "A client to connect to a server which implements the Tax protocol. Enter 'help' for valid commands."
 
     while (
-      print "\nEnter operation: "
-      (operation = gets.chomp.downcase)
+      print "\nEnter command: "
+      (command = gets.chomp.downcase)
     )
-      # Check for a valid operation
-      unless VALID_OPERATIONS.include?(operation)
-        puts "\nInvalid operation '#{operation}'. Enter 'help' for valid operations."
+      # Check for a valid command
+      unless VALID_COMMANDS.include?(command)
+        puts "Invalid command '#{command}'. Enter 'help' for valid commands."
         next
       end
 
-      send(operation.to_sym) # Turn operation into method call e.g. HELP -> self.help
+      puts
+      send(command.to_sym) # Turn command into method call e.g. HELP -> self.help
     end
   end
 
@@ -33,106 +35,114 @@ class TaxClient
   attr_accessor :server, :host, :port
 
   def help
-    puts "\nValid operations are: "
-    puts "    help:       List all operations and their use."
-    puts "    connect:    Create a socket to a tax server."
+    puts "\nValid commands are: "
+    puts "    connect:    Create a new session to a tax server."
     puts "    disconnect: Close the current session with the tax server."
     puts "    store:      Store a income range and tax rule on the tax server."
     puts "    query:      Query the tax server for stored tax scale data."
     puts "    calculate:  Send an income payable to the tax server and get the tax payable."
-    puts "    disconnect: Close the current session with the tax server."
     puts "    shutdown:   Shutdown the current tax server."
-    puts "    exit:       Exit from the client (will close socket with server if created)."
+    puts "    exit:       Exit from the client (will disconnect from server)."
   end
 
-  def tax
-    unless server_closed?
-      puts "A socket to a tax server has already been created"
+  def connect
+    if server_connected?
+      puts "Already connected to a tax server."
       return
     end
 
-    puts "\nCreating a socket to a tax server"
+    puts "Creating a connection to a tax server."
 
-    host = "127.0.0.1"
-    port = 3000
-
+    address = "127.0.0.1"
     print "Host (default 127.0.0.1): "
-    new_host = gets.chomp
-    @host = new_host unless new_host.empty?
+    new_address = gets.chomp
+    address = new_address unless new_address.empty?
 
+    port = 3000
     print "Port (default 3000): "
     new_port = gets.chomp
-    @port = new_port unless new_port.empty?
+    port = new_port unless new_port.empty?
 
-    puts "Creating socket on #{host}:#{port} and sending 'TAX'"
+    puts "Creating new tax protocol session on #{address}:#{port}."
 
-    begin
-      @server = TCPSocket.new(host, port)
-    rescue Errno::ECONNREFUSED
-      puts "No open socket on #{host}:#{port}"
-      return
-    end
+    @server = Net::TP.new(address:, port:)
+    res = @server.tax
 
-    server.puts("TAX\n")
-
-    response = server.gets
-    puts "Received: #{response.dump}"
-
-    if response == "TAX: OK\n"
-      puts "Socked sucessfully created with tax server"
-    else
-      puts "Invalid response received from tax server"
-    end
+    puts_raw_response(res)
   end
 
   def store
-    return if server_closed?
+    return if server_connection_required?
 
-    puts "\nCreating a new income range and tax rule and sending it to the server"
+    puts "Creating a new income range and tax rule and storing it in the server."
 
-    print "Lower range (> 0): "
-    lower_range = gets.chomp
+    print "Lower range (>= 0): "
+    lower = gets.chomp.to_i
 
     print "Upper range (enter '~' for an open upper range): "
-    upper_range = gets.chomp
+    upper = gets.chomp.to_i
 
     print "Base tax: "
-    base_tax = gets.chomp
+    base = gets.chomp.to_i
 
     print "Tax rate (in cents per dollar): "
-    tax_rate = gets.chomp
+    rate = gets.chomp.to_i
 
-    server.puts ("STORE\n#{lower_range}\n#{upper_range}\n#{base_tax}\n#{tax_rate}\n")
+    res = server.store(lower:, upper:, base:, rate:)
 
-    response = server.gets
-    puts "Received: #{response.dump}"
+    puts_raw_response(res)
   end
 
-  def bye
-    return if server_closed?
+  def query
+    return if server_connection_required?
 
-    server.puts("BYE\n")
+  end
 
-    response = server.gets
-    puts "Received: #{response.dump}"
+  def calculate
+    return if server_connection_required?
 
-    server.close
+  end
+
+  def disconnect
+    return unless server_connected?
+
+    res = @server.bye
+    puts_raw_response(res)
+
     puts "Closed connection with server"
   end
 
-  def end
-    return unless server
+  def shutdown
+    return unless server_connected?
+
+    res = @server.end
+    puts_raw_response(res)
+
   end
 
   def exit
-    bye
+    disconnect
 
     super
   end
 
-  def server_closed?
-    puts "No server socket created"
-    server.nil? || server.closed?
+  private
+
+  def server_connected?
+    @server&.connected?
+  end
+
+  def server_connection_required?
+    unless server_connected?
+      puts "Need to run 'connect' to start a session"
+      return true
+    end
+
+    false
+  end
+
+  def puts_raw_response(res)
+    puts("Raw response: #{res.raw_response.dump}.")
   end
 end
 

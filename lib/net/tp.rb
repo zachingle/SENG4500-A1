@@ -9,7 +9,7 @@ module Net
     attr_accessor :address, :port
 
     def self.start(...)
-      new(...).tax
+      new(...).tap(&:tax)
     end
 
     def initialize(address:, port:)
@@ -21,8 +21,6 @@ module Net
       raise IOError, "TP session already started" if @socket
 
       request(Tax)
-
-      self
     end
 
     def store(lower:, upper:, base:, rate:)

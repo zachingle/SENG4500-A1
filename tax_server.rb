@@ -21,14 +21,27 @@ class TaxServer
     end.parse!
 
     server = TCPServer.new(options[:port])
+    protocol = TaxProtocol.new
 
     loop do
       client = server.accept
-      protocol = TaxProtocol.new
 
-      while (line = client.gets)
+      binding.pry
+      while (line = client.readlines("\n"))
+
+        # if line.start_with?("STORE")
+        #   body = ""
+
+        #   while (rest = client.gets) && rest != ''
+        #     puts rest
+        #     body += rest
+        #   end
+
+        #   line += body
+        # end
+
         puts line
-        client.puts protocol.process_input(line)
+        client.puts protocol.process_request(line)
       end
 
       client.close
