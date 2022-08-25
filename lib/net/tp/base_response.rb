@@ -8,7 +8,7 @@ class Net::TP::BaseResponse
   attr_reader :body, :raw_response
 
   def initialize(res)
-    raise Net::TP::BadResponse, "Invalid Tax response" unless res =~ self.class::VALID_RESPONSE_REGEX
+    raise Net::TP::BadResponse, "Invalid Tax response: #{res.dump}" unless res =~ self.class::VALID_RESPONSE_REGEX
 
     @body = parse_body(res)
     @raw_response = res

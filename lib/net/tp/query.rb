@@ -11,10 +11,12 @@ module Net::TP::Query
     private
 
     def parse_body(res)
-      res.split("\n")[..-2].map do |rule|
+      ranges = res.split("\n")[..-2].map do |rule|
         lower, upper, base, rate = rule.split.map(&:to_i)
         { lower:, upper:, base:, rate: }
       end
+
+      { ranges: }
     end
   end
 end

@@ -54,7 +54,7 @@ class TaxClient
     puts "Creating a connection to a tax server."
 
     address = "127.0.0.1"
-    print "Host (default 127.0.0.1): "
+    print "Address (default 127.0.0.1): "
     new_address = gets.chomp
     address = new_address unless new_address.empty?
 
@@ -68,7 +68,7 @@ class TaxClient
     @server = Net::TP.new(address:, port:)
     res = @server.tax
 
-    puts_raw_response(res)
+    puts_response(res)
   end
 
   def store
@@ -90,12 +90,24 @@ class TaxClient
 
     res = server.store(lower:, upper:, base:, rate:)
 
-    puts_raw_response(res)
+    puts_response(res)
   end
 
   def query
     return if server_connection_required?
 
+    res = server.query
+    puts_response(res)
+
+    if res.body[:ranges].empty?
+      puts "No tax ranges stored on the server"
+      return
+    end
+
+    puts "Received the following tax ranges: "
+    res.body[:ranges].each do |tax_range|
+      puts "$#{tax_range[:lower]} - $#{tax_range[:upper]}: $#{tax_range[:base]} plus #{tax_range[:rate]}c for each dollar over #{tax_range[:lower]}"
+    end
   end
 
   def calculate
@@ -141,8 +153,8 @@ class TaxClient
     false
   end
 
-  def puts_raw_response(res)
-    puts("Raw response: #{res.raw_response.dump}.")
+  def puts_response(res)
+    puts("Response: #{res.raw_response.dump}.")
   end
 end
 

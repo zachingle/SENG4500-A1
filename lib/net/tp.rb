@@ -60,9 +60,15 @@ module Net
 
       open_socket unless @socket
 
-      @socket.puts(operation::Request.construct(...))
+      @socket.write(operation::Request.construct(...))
 
-      operation::Response.parse(@socket.gets)
+      response = @socket.gets
+      # HACK: Tax Protocol doesn't define an end of message indicator so we have to just read the rest of the bytes in
+      # the stream and hope the client has sent all of the message at once. This is only a problem for the server with
+      # the STORE operation, and a problem for the client with the QUERY operation
+      response += @socket.readpartial(2048) if operation == Query
+
+      operation::Response.parse(response)
     end
 
     def open_socket
