@@ -1,20 +1,25 @@
+# Zachariah Ingle C3349554 SENG4500
 # frozen_string_literal: true
 
 require "socket"
 
 module Net
+  # Tax Protocol (TP) Client. Operations are public methods on the client (e.g TAX => #tax, STORE => #store)
   class TP
     class BadResponse < StandardError; end
 
     attr_accessor :address, :port
 
+    # Helper method that returns a TP client that is already connected
     def self.start(...)
       new(...).tap(&:tax)
     end
 
-    def initialize(address:, port:)
+    def initialize(address:, port:, debug: false, strict: false)
       @address = address
       @port = port
+      @debug = debug   # To see raw request and response strings
+      @strict = strict # For ensuring valid responses
     end
 
     def tax
@@ -55,25 +60,28 @@ module Net
 
     private
 
+    # Takes an operation constant (e.g Tax, Store, etc) and optional args. Requests operation and the parses response
     def request(operation, ...)
       raise IOError, "Need to first send a Tax request and open a socket" unless operation == Tax || @socket
 
       open_socket unless @socket
 
-      @socket.write(operation::Request.construct(...))
+      request = operation::Request.construct(...)
+      puts "[DEBUG] Sent: #{request.dump}" if @debug
+      @socket.write(request)
 
       response = @socket.gets
-      # HACK: Tax Protocol doesn't define an end of message indicator so we have to just read the rest of the bytes in
-      # the stream and hope the client has sent all of the message at once. This is only a problem for the server with
-      # the STORE operation, and a problem for the client with the QUERY operation
-      response += @socket.readpartial(2048) if operation == Query
+      # Need to do this as the Query response is multiple line
+      response += @socket.gets while operation == Query && !response.end_with?("QUERY: OK\n")
 
-      operation::Response.parse(response)
+      puts "[DEBUG] Received: #{response.dump}" if @debug
+
+      operation::Response.parse(response, strict: @strict)
     end
 
     def open_socket
       @socket = TCPSocket.new(@address, @port)
-    rescue Errno::ECONNREFUSED => e
+    rescue Errno::ECONNREFUSED, Errno::EHOSTUNREACH, SocketError, Errno::EADDRNOTAVAIL => e
       puts "Unable to open socket at #{@address}:#{@port}. #{e}"
       raise
     end

@@ -1,5 +1,7 @@
+# Zachariah Ingle C3349554 SENG4500
 # frozen_string_literal: true
 
+# Bye operation. Used to stop a TP session
 module Net::TP::Bye
   class Request < Net::TP::BaseRequest
     HEADER = "BYE"

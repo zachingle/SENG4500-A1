@@ -1,5 +1,7 @@
+# Zachariah Ingle C3349554 SENG4500
 # frozen_string_literal: true
 
+# Query operation. Used to query a TP-compliant server for its stored tax rates
 module Net::TP::Query
   class Request < Net::TP::BaseRequest
     HEADER = "QUERY"
@@ -11,12 +13,14 @@ module Net::TP::Query
     private
 
     def parse_body(res)
-      ranges = res.split("\n")[..-2].map do |rule|
-        lower, upper, base, rate = rule.split.map(&:to_i)
+      # Ignore "QUERY: OK\n" line
+      tax_rates = res.split("\n")[..-2].map do |rule|
+        lower, upper, base, rate = rule.split
+
         { lower:, upper:, base:, rate: }
       end
 
-      { ranges: }
+      { tax_rates: }
     end
   end
 end

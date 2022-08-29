@@ -1,10 +1,9 @@
+# Zachariah Ingle C3349554 SENG4500
 # frozen_string_literal: true
-
-require "optparse"
-require "pry"
 
 require_relative "lib/net/tp"
 
+# Tax Client CLI. Used to interact with a Tax Protocol (TP) compliant server
 class TaxClient
   VALID_COMMANDS = %w[help connect disconnect store query calculate shutdown exit].freeze
 
@@ -13,36 +12,36 @@ class TaxClient
   end
 
   def run
-    puts "A client to connect to a server which implements the Tax protocol. Enter 'help' for valid commands."
+    puts "A CLI client to connect to a Tax Protocol (TP) compliant server. Enter 'help' for valid commands."
 
-    while (
+    loop do
       print "\nEnter command: "
-      (command = gets.chomp.downcase)
-    )
+      command = gets.chomp.downcase
+      puts
+
       # Check for a valid command
       unless VALID_COMMANDS.include?(command)
         puts "Invalid command '#{command}'. Enter 'help' for valid commands."
         next
       end
 
-      puts
-      send(command.to_sym) # Turn command into method call e.g. HELP -> self.help
+      send(command.to_sym) # Call correct method given command
     end
   end
 
   private
 
-  attr_accessor :server, :host, :port
+  attr_accessor :server
 
   def help
-    puts "\nValid commands are: "
-    puts "    connect:    Create a new session to a tax server."
-    puts "    disconnect: Close the current session with the tax server."
-    puts "    store:      Store a income range and tax rule on the tax server."
-    puts "    query:      Query the tax server for stored tax scale data."
-    puts "    calculate:  Send an income payable to the tax server and get the tax payable."
-    puts "    shutdown:   Shutdown the current tax server."
-    puts "    exit:       Exit from the client (will disconnect from server)."
+    puts "Valid commands (with matching operation) are: "
+    puts "    connect:    (TAX)    Create a new session with a TP server."
+    puts "    disconnect: (BYE)    Close the current session with the TP server."
+    puts "    store:      (STORE)  Store a income range and tax rule on the TP server."
+    puts "    query:      (QUERY)  Query the TP server for stored tax rate data."
+    puts "    calculate:  (/\\d+/)  Send an income payable to the TP server and get the tax payable."
+    puts "    shutdown:   (END)    Shutdown the current TP server."
+    puts "    exit:       (BYE)    Exit the client (will disconnect from the server if connected)."
   end
 
   def connect
@@ -65,10 +64,8 @@ class TaxClient
 
     puts "Creating new tax protocol session on #{address}:#{port}."
 
-    @server = Net::TP.new(address:, port:)
-    res = @server.tax
-
-    puts_response(res)
+    @server = Net::TP.new(address:, port:, debug: true, strict: false)
+    server.tax
   end
 
   def store
@@ -77,59 +74,76 @@ class TaxClient
     puts "Creating a new income range and tax rule and storing it in the server."
 
     print "Lower range (>= 0): "
-    lower = gets.chomp.to_i
+    lower = gets.chomp
 
     print "Upper range (enter '~' for an open upper range): "
-    upper = gets.chomp.to_i
+    upper = gets.chomp
 
     print "Base tax: "
-    base = gets.chomp.to_i
+    base = gets.chomp
 
     print "Tax rate (in cents per dollar): "
-    rate = gets.chomp.to_i
+    rate = gets.chomp
 
-    res = server.store(lower:, upper:, base:, rate:)
-
-    puts_response(res)
+    server.store(lower:, upper:, base:, rate:)
   end
 
   def query
     return if server_connection_required?
 
     res = server.query
-    puts_response(res)
 
-    if res.body[:ranges].empty?
-      puts "No tax ranges stored on the server"
+    if res.body[:tax_rates].empty?
+      puts "No tax rates stored on the server."
       return
     end
 
-    puts "Received the following tax ranges: "
-    res.body[:ranges].each do |tax_range|
-      puts "$#{tax_range[:lower]} - $#{tax_range[:upper]}: $#{tax_range[:base]} plus #{tax_range[:rate]}c for each dollar over #{tax_range[:lower]}"
+    puts "Received the following tax rates: "
+    res.body[:tax_rates].each do |tax_rate|
+      line = "  $#{tax_rate[:lower]}"
+      line += tax_rate[:upper] == "~" ? " and over: " : " - $#{tax_rate[:upper]}: "
+
+      has_base = tax_rate[:base] != "0"
+      has_rate = tax_rate[:rate] != "0"
+
+      line += "$#{tax_rate[:base]}" if has_base
+      line += " plus " if has_base && has_rate
+      line += "#{tax_rate[:rate]}c for each dollar over $#{tax_rate[:lower].to_i - 1}" if has_rate
+      line += "nil" unless has_base || has_rate
+
+      puts line
     end
   end
 
   def calculate
     return if server_connection_required?
 
+    print "Please enter an income to calculate tax for: "
+    income = gets.chomp
+
+    tax_payable = server.calculate(income).body[:tax_payable]
+
+    if tax_payable
+      puts "Tax payable is: $#{tax_payable}."
+    else
+      puts "No tax range found for: $#{income}."
+    end
   end
 
   def disconnect
     return unless server_connected?
 
-    res = @server.bye
-    puts_raw_response(res)
+    server.bye
 
-    puts "Closed connection with server"
+    puts "Closed connection with server."
   end
 
   def shutdown
     return unless server_connected?
 
-    res = @server.end
-    puts_raw_response(res)
+    server.end
 
+    puts "Server successfully shutdown."
   end
 
   def exit
@@ -141,20 +155,16 @@ class TaxClient
   private
 
   def server_connected?
-    @server&.connected?
+    server&.connected?
   end
 
   def server_connection_required?
     unless server_connected?
-      puts "Need to run 'connect' to start a session"
+      puts "Sever connection required. Run 'connect' to start a session."
       return true
     end
 
     false
-  end
-
-  def puts_response(res)
-    puts("Response: #{res.raw_response.dump}.")
   end
 end
 

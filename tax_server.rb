@@ -1,8 +1,9 @@
+# Zachariah Ingle C3349554 SENG4500
+
 # frozen_string_literal: true
 
 require "optparse"
 require "socket"
-require "pry"
 
 require_relative "tax_protocol"
 
@@ -28,14 +29,25 @@ class TaxServer
     loop do
       client = server.accept
 
-      while (line = client.gets)
-        # HACK: Tax Protocol doesn't define an end of message indicator so we have to just read the rest of the bytes in
-        # the stream and hope the client has sent all of the message at once. This is only a problem for the server with
-        # the STORE operation, and a problem for the client with the QUERY operation
-        line += client.readpartial(2048) if line.start_with?("STORE")
+      while (msg = client.gets)
+        if msg.start_with?("STORE")
+          4.times do
+            msg += client.gets
+          end
+        end
 
-        puts "Received: #{line.dump}"
-        client.puts protocol.process_request(line)
+        puts "Received: #{msg.dump}"
+
+        response = protocol.process_request(msg)
+        puts "Sent: #{response.dump}"
+        client.write response
+
+        break if msg == "BYE\n"
+
+        if msg == "END\n"
+          client.close
+          exit
+        end
       end
 
       client.close
