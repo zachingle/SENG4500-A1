@@ -17,11 +17,11 @@ class TaxProtocol
   def initialize
     @tax_rates = []
     # FY22-23 AU Tax Rates
-    @tax_rates << TaxRate.new(range: (0..18200), base: 0, rate: 0)
-    @tax_rates << TaxRate.new(range: (18201..45000), base: 0, rate: 19)
-    @tax_rates << TaxRate.new(range: (45001..120000), base: 5092, rate: 32.5)
-    @tax_rates << TaxRate.new(range: (120001..180000), base: 29467, rate: 37)
-    @tax_rates << TaxRate.new(range: (180001..), base: 51667, rate: 45)
+    # @tax_rates << TaxRate.new(range: (0..18200), base: 0, rate: 0)
+    # @tax_rates << TaxRate.new(range: (18201..45000), base: 0, rate: 19)
+    # @tax_rates << TaxRate.new(range: (45001..120000), base: 5092, rate: 32.5)
+    # @tax_rates << TaxRate.new(range: (120001..180000), base: 29467, rate: 37)
+    # @tax_rates << TaxRate.new(range: (180001..), base: 51667, rate: 45)
   end
 
   def process_request(request)
