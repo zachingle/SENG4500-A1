@@ -14,14 +14,10 @@ class TaxProtocol
     end
   end
 
+  attr_reader :tax_rates
+
   def initialize
     @tax_rates = []
-    # FY22-23 AU Tax Rates
-    # @tax_rates << TaxRate.new(range: (0..18200), base: 0, rate: 0)
-    # @tax_rates << TaxRate.new(range: (18201..45000), base: 0, rate: 19)
-    # @tax_rates << TaxRate.new(range: (45001..120000), base: 5092, rate: 32.5)
-    # @tax_rates << TaxRate.new(range: (120001..180000), base: 29467, rate: 37)
-    # @tax_rates << TaxRate.new(range: (180001..), base: 51667, rate: 45)
   end
 
   def process_request(request)
@@ -52,11 +48,16 @@ class TaxProtocol
 
     # See if any tax ranges overlap and shorten them if needed
     @tax_rates.each do |tax_rate|
-      if !tax_rate.range.end.nil? && tax_rate.range.cover?(range.first)
-        tax_rate.range = Range.new(tax_rate.range.first, range.first - 1)
-      elsif tax_rate.range.cover?(range.end)
-        tax_rate.range = Range.new(range.end + 1, tax_rate.range.end)
-      end
+      tax_rate_lower = tax_rate.range.first
+      tax_rate_upper = tax_rate.range.end
+
+      # If the lower bound of the current tax rate overlaps the new rate
+      tax_rate_lower = range.end + 1 if range.cover?(tax_rate.range.first)
+
+      # if the upper bound of the current tax rate overlaps the new rate or the upper bounds are both endless
+      tax_rate_upper = range.first - 1 if range.cover?(tax_rate.range.end) || (range.end.nil? && tax_rate.range.end.nil?)
+
+      tax_rate.range = Range.new(tax_rate_lower, tax_rate_upper)
     end
 
     @tax_rates << TaxRate.new(range:, base: base.to_i, rate: rate.to_i)

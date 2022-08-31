@@ -108,7 +108,8 @@ class TaxClient
 
       line += "$#{tax_rate[:base]}" if has_base
       line += " plus " if has_base && has_rate
-      line += "#{tax_rate[:rate]}c for each dollar over $#{tax_rate[:lower].to_i - 1}" if has_rate
+      over = tax_rate[:lower].to_i.zero? ? 0 : (tax_rate[:lower].to_i - 1)
+      line += "#{tax_rate[:rate]}c for each dollar over $#{over}" if has_rate
       line += "nil" unless has_base || has_rate
 
       puts line

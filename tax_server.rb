@@ -28,8 +28,16 @@ class TaxServer
 
     loop do
       client = server.accept
+      session_started = false
 
       while (msg = client.gets)
+        if !session_started && msg != "TAX\n"
+          client.puts "Need to send 'TAX\\n' to start session"
+          break
+        else
+          session_started = true
+        end
+
         if msg.start_with?("STORE")
           4.times do
             msg += client.gets
